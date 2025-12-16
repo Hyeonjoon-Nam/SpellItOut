@@ -2,8 +2,8 @@ name: Deploy WebGL to itch.io
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch: {}
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-webgl:
@@ -12,39 +12,39 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          lfs: false
 
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
           path: Library
-          key: Library-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          key: Library-${{ runner.os }}-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: |
-            Library-WebGL-
+            Library-${{ runner.os }}-WebGL-
 
       - name: Build WebGL
         uses: game-ci/unity-builder@v4
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
-          unityVersion: 6000.0.056f1
-          targetPlatform: WebGL
           projectPath: .
-          buildName: SpellItOut
+          unityVersion: 6000.0.56f1
+          targetPlatform: WebGL
           buildsPath: build
+          buildName: WebGL
 
-      - name: Setup Butler
-        uses: jdno/setup-butler@v1
+      - name: Upload build artifact (debug)
+        uses: actions/upload-artifact@v4
         with:
-          butler-version: latest
+          name: WebGL
+          path: build/WebGL
 
-      - name: Upload to itch.io (WebGL)
+      - name: Setup butler
+        uses: jdno/setup-butler@v1
+
+      - name: Push to itch.io (webgl)
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-          ITCH_USERNAME: ${{ secrets.ITCH_USERNAME }}
-          ITCH_GAME: ${{ secrets.ITCH_GAME }}
         run: |
-          butler push "build/WebGL/SpellItOut" "${ITCH_USERNAME}/${ITCH_GAME}:webgl" --userversion "${GITHUB_SHA}"
+          butler push build/WebGL hyeonjoon-nam/spell-it-out:webgl --userversion $GITHUB_SHA
