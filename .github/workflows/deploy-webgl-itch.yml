@@ -3,6 +3,7 @@ name: Deploy WebGL to itch.io
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch: {}
 
 jobs:
   build-webgl:
@@ -12,34 +13,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          lfs: true
+          lfs: false
 
-      # Cache Unity Library folder to speed up consecutive builds
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
           path: Library
-          key: Library-${{ runner.os }}-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          key: Library-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: |
-            Library-${{ runner.os }}-WebGL-
+            Library-WebGL-
 
       - name: Build WebGL
         uses: game-ci/unity-builder@v4
         env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          projectPath: .
           unityVersion: 6000.0.056f1
           targetPlatform: WebGL
+          projectPath: .
           buildName: SpellItOut
           buildsPath: build
 
-      - name: Setup butler
-        uses: remarkablegames/setup-butler@v2
+      - name: Setup Butler
+        uses: jdno/setup-butler@v1
+        with:
+          butler-version: latest
 
-      - name: Upload to itch.io
+      - name: Upload to itch.io (WebGL)
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_USERNAME: ${{ secrets.ITCH_USERNAME }}
+          ITCH_GAME: ${{ secrets.ITCH_GAME }}
         run: |
-          butler push "build/WebGL/SpellItOut" "hyeonjoon-nam/spell-it-out:web"
+          butler push "build/WebGL/SpellItOut" "${ITCH_USERNAME}/${ITCH_GAME}:webgl" --userversion "${GITHUB_SHA}"
