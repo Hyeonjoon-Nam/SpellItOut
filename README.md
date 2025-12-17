@@ -9,7 +9,6 @@ https://hyeonjoon-nam.itch.io/spell-it-out
 ## What’s in this repo (Public Version)
 - ✅ WebGL build deployed to itch.io
 - ✅ Runs on Windows (tested)
-- ⚠️ Mobile support: not verified
 - ❌ Nintendo Switch SDKs / plugins / platform-specific code are **not included**
 
 ## Overview
