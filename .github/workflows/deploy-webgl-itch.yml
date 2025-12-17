@@ -57,6 +57,13 @@ jobs:
           testMode: playmode
           artifactsPath: test-results
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results
+
       - name: Build WebGL
         uses: game-ci/unity-builder@v4
         env:
@@ -64,6 +71,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
+          allowDirtyBuild: true
           projectPath: .
           unityVersion: 6000.0.56f1
           targetPlatform: WebGL
@@ -80,3 +88,5 @@ jobs:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
         run: |
           butler push build/WebGL hyeonjoon-nam/spell-it-out:webgl --userversion $GITHUB_SHA
+
+      
