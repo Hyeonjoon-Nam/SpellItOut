@@ -1,26 +1,19 @@
-name: Deploy WebGL to itch.io
+name: CI (tests) + Deploy (main only)
 
 on:
+  pull_request:
+    branches: [ main ]
   push:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build-webgl:
+  ci-tests:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Show disk usage (before)
-      - name: Show disk space (before)
-        run: |
-          df -h
-          docker system df || true
-
-      # Free disk space on GitHub-hosted runner
-      # (Unity docker images are huge; this prevents "no space left on device")
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet || true
@@ -32,22 +25,16 @@ jobs:
           sudo rm -rf /var/lib/apt/lists/* || true
           sudo docker system prune -af --volumes || true
 
-      # Show disk usage (after)
-      - name: Show disk space (after)
-        run: |
-          df -h
-          docker system df || true
-
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
           path: Library
-          key: Library-${{ runner.os }}-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          key: Library-${{ runner.os }}-Tests-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: |
-            Library-${{ runner.os }}-WebGL-
+            Library-${{ runner.os }}-Tests-
 
-      - name: Build WebGL
-        uses: game-ci/unity-builder@v4
+      - name: Run Unity tests (PlayMode)
+        uses: game-ci/unity-test-runner@v4
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
@@ -55,15 +42,12 @@ jobs:
         with:
           projectPath: .
           unityVersion: 6000.0.56f1
-          targetPlatform: WebGL
-          buildsPath: build
-          buildName: WebGL
+          testMode: playmode
+          artifactsPath: test-results
 
-      - name: Setup butler
-        uses: jdno/setup-butler@v1
-
-      - name: Push to itch.io (webgl)
-        env:
-          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-        run: |
-          butler push build/WebGL hyeonjoon-nam/spell-it-out:webgl --userversion $GITHUB_SHA
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results
