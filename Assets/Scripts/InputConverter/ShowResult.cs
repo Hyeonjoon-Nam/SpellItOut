@@ -31,7 +31,6 @@ public class ShowResult : MonoBehaviour
     [Header("Templates")]
     public List<GestureTemplate> templates = new List<GestureTemplate>();
 
-
     // Called by Line_To_8Dir when a stroke is finished
     public void ProcessGesture(List<int> dirs, float normLength)
     {
@@ -57,7 +56,7 @@ public class ShowResult : MonoBehaviour
             if (t == null || t.pattern == null || t.pattern.Length == 0)
                 continue;
 
-            float score = DirectionSequenceDistance(dirs, t.pattern);
+            float score = GestureMath.DirectionSequenceDistance(dirs, t.pattern, DirBins);
             if (score < bestScore)
             {
                 bestScore = score;
@@ -84,30 +83,9 @@ public class ShowResult : MonoBehaviour
         SetTexts(bestName, debug);
     }
 
-    // Calculate distance
-    private float DirectionSequenceDistance(List<int> a, int[] b)
-    {
-        int maxLen = Mathf.Max(a.Count, b.Length);
-        float sum = 0f;
-
-        for (int i = 0; i < maxLen; ++i)
-        {
-            int da = i < a.Count ? a[i] : a[a.Count - 1];
-            int db = i < b.Length ? b[i] : b[b.Length - 1];
-
-            int diff = Mathf.Abs(da - db);
-            diff = Mathf.Min(diff, DirBins - diff);
-            sum += diff;
-        }
-
-        sum += Mathf.Abs(a.Count - b.Length) * 0.5f;
-
-        return sum;
-    }
-
     private void DrawShape(GestureTemplate template)
     {
-        if (shapeRenderer == null || template.shape == null || template.shape.Length == 0)
+        if (shapeRenderer == null || template == null || template.shape == null || template.shape.Length == 0)
             return;
 
         shapeRenderer.positionCount = template.shape.Length;
