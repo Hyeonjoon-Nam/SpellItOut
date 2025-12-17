@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using NUnit.Framework;
 using System.Collections.Generic;
 using UnityEngine;
@@ -161,3 +162,5 @@ public class GestureAndPCGTests
         gmObj.SendMessage("Awake");
     }
 }
+
+#endif
