@@ -50,6 +50,22 @@ namespace GestureNX
         [Header("Templates")]
         public List<GestureTemplate> templates = new();
 
+        [Header("Matching")]
+        [Tooltip("Use weighted edit distance (more tolerant to missing/extra direction tokens).")]
+        public bool useWeightedEditDistance = true;
+
+        [Tooltip("Insert/Delete cost for edit distance. Lower = more tolerant.")]
+        [Range(0.1f, 2.0f)]
+        public float insertDeleteCost = 0.75f;
+
+        [Tooltip("Scale for substitution cost (direction difference). Lower = more tolerant.")]
+        [Range(0.25f, 2.0f)]
+        public float substitutionScale = 1.0f;
+
+        [Tooltip("Acceptance threshold for the chosen scoring method. Higher = more tolerant.")]
+        [Range(0.0f, 20.0f)]
+        public float acceptThreshold = 5.0f;
+
         public GestureKind Process(List<int> dirs, float normLength)
         {
             if (dirs == null || dirs.Count == 0)
@@ -65,21 +81,21 @@ namespace GestureNX
             GestureKind bestKind = GestureKind.Invalid;
             float bestScore = float.MaxValue;
 
-            // Check all the templates and calculate score
             foreach (var t in templates)
             {
                 if (t == null || t.pattern == null || t.pattern.Length == 0)
                     continue;
 
-                float score = GestureRecognitionUtil.DirectionSequenceDistance(dirs, t.pattern);
+                float score = useWeightedEditDistance
+                    ? GestureRecognitionUtil.WeightedEditDistance(dirs, t.pattern, insertDeleteCost, substitutionScale)
+                    : GestureRecognitionUtil.DirectionSequenceDistanceLegacy(dirs, t.pattern);
+
                 if (score < bestScore)
                 {
                     bestScore = score;
                     bestKind = t.GetKind();
                 }
             }
-
-            const float acceptThreshold = 4.0f;
 
             if (bestScore > acceptThreshold)
             {
@@ -94,7 +110,8 @@ namespace GestureNX
     {
         private const int DirBins = 8;
 
-        internal static float DirectionSequenceDistance(List<int> a, int[] b)
+        // Legacy scoring (your current approach)
+        internal static float DirectionSequenceDistanceLegacy(List<int> a, int[] b)
         {
             int maxLen = Mathf.Max(a.Count, b.Length);
             float sum = 0f;
@@ -110,8 +127,60 @@ namespace GestureNX
             }
 
             sum += Mathf.Abs(a.Count - b.Length) * 0.5f;
-
             return sum;
+        }
+
+        // Weighted Levenshtein distance for int direction sequences
+        // - Substitution cost uses circular direction difference (0..4 for 8 bins)
+        // - Insertion/Deletion cost is configurable
+        internal static float WeightedEditDistance(List<int> a, int[] b, float insDelCost, float subScale)
+        {
+            int n = a.Count;
+            int m = b.Length;
+
+            if (n == 0) return m * insDelCost;
+            if (m == 0) return n * insDelCost;
+
+            // Two-row DP to reduce allocations
+            float[] prev = new float[m + 1];
+            float[] curr = new float[m + 1];
+
+            prev[0] = 0f;
+            for (int j = 1; j <= m; ++j)
+                prev[j] = j * insDelCost;
+
+            for (int i = 1; i <= n; ++i)
+            {
+                curr[0] = i * insDelCost;
+                int ai = a[i - 1];
+
+                for (int j = 1; j <= m; ++j)
+                {
+                    int bj = b[j - 1];
+
+                    int diff = Mathf.Abs(ai - bj);
+                    diff = Mathf.Min(diff, DirBins - diff);
+
+                    float subCost = diff * subScale;
+
+                    float del = prev[j] + insDelCost;
+                    float ins = curr[j - 1] + insDelCost;
+                    float sub = prev[j - 1] + subCost;
+
+                    float best = del;
+                    if (ins < best) best = ins;
+                    if (sub < best) best = sub;
+
+                    curr[j] = best;
+                }
+
+                // Swap rows
+                var tmp = prev;
+                prev = curr;
+                curr = tmp;
+            }
+
+            return prev[m];
         }
     }
 }
